@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Panshet Dam — Spillway Gate Operation Calculator</title>
+<style>
+  :root{
+    --slate-950:#0b1520;
+    --slate-900:#101d2b;
+    --slate-800:#182a3d;
+    --slate-700:#233b52;
+    --slate-600:#33526e;
+    --mist:#9db3c4;
+    --paper:#eef3f6;
+    --spillway:#3aa0c9;
+    --spillway-dim:#1f5a72;
+    --alert:#e0784a;
+    --good:#5fb992;
+    --gauge-line:#3a5670;
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(180deg, var(--slate-950), var(--slate-900) 40%, var(--slate-900));
+    color:var(--paper);
+    min-height:100vh;
+    padding:32px 20px 64px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:1px solid var(--slate-700);
+    padding-bottom:18px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .title-block .eyebrow{
+    font-family:'Courier New', monospace;
+    letter-spacing:.18em;
+    font-size:11px;
+    color:var(--spillway);
+    text-transform:uppercase;
+  }
+  h1{
+    font-size:26px;
+    margin:4px 0 2px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--mist);font-size:13.5px;}
+  .crest-tag{
+    font-family:'Courier New', monospace;
+    font-size:12px;
+    color:var(--mist);
+    text-align:right;
+    line-height:1.6;
+  }
+  .crest-tag b{color:var(--paper);}
+
+  .panel{
+    background:var(--slate-900);
+    border:1px solid var(--slate-700);
+    border-radius:4px;
+    padding:22px 24px;
+    margin-bottom:22px;
+  }
+  .panel h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--spillway);
+    margin:0 0 16px;
+    font-weight:600;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(210px,1fr));
+    gap:16px;
+  }
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--mist);
+    margin-bottom:6px;
+  }
+  input[type=number], input[type=date], input[type=time], select{
+    width:100%;
+    background:var(--slate-800);
+    border:1px solid var(--slate-600);
+    color:var(--paper);
+    padding:10px 12px;
+    border-radius:3px;
+    font-size:15px;
+    font-family:'Courier New', monospace;
+  }
+  input[type=number]:focus, input[type=date]:focus, input[type=time]:focus, select:focus{
+    outline:none;
+    border-color:var(--spillway);
+  }
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator{
+    filter:invert(0.8);
+  }
+  .unit{font-size:11px;color:var(--mist);margin-top:4px;}
+  .row-actions{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-top:20px;
+    flex-wrap:wrap;
+  }
+  button{
+    background:var(--spillway);
+    color:var(--slate-950);
+    border:none;
+    padding:12px 26px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:.03em;
+    border-radius:3px;
+    cursor:pointer;
+    text-transform:uppercase;
+  }
+  button:hover{background:#57b3d6;}
+  .toggle{
+    display:flex;
+    border:1px solid var(--slate-600);
+    border-radius:3px;
+    overflow:hidden;
+    font-family:'Courier New', monospace;
+    font-size:12px;
+  }
+  .toggle span{
+    padding:8px 12px;
+    cursor:pointer;
+    color:var(--mist);
+  }
+  .toggle span.active{background:var(--slate-700);color:var(--paper);}
+
+  #results{display:none;}
+  .stat-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(170px,1fr));
+    gap:14px;
+    margin-bottom:24px;
+  }
+  .stat{
+    background:var(--slate-800);
+    border:1px solid var(--slate-700);
+    border-left:3px solid var(--spillway);
+    padding:14px 16px;
+    border-radius:3px;
+  }
+  .stat .k{font-size:11px;color:var(--mist);text-transform:uppercase;letter-spacing:.08em;}
+  .stat .v{font-family:'Courier New', monospace;font-size:20px;margin-top:4px;color:var(--paper);}
+  .stat .v small{font-size:12px;color:var(--mist);}
+  .stat.warn{border-left-color:var(--alert);}
+  .stat.ok{border-left-color:var(--good);}
+
+  .gates{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:8px;
+  }
+  .gate{
+    background:var(--slate-800);
+    border:1px solid var(--slate-700);
+    border-radius:4px;
+    padding:14px;
+    text-align:center;
+    position:relative;
+  }
+  .gate .label{
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    color:var(--mist);
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .gate .shaft{
+    height:130px;
+    width:44px;
+    margin:0 auto 10px;
+    border:2px solid var(--slate-600);
+    border-radius:2px;
+    position:relative;
+    background:repeating-linear-gradient(
+      0deg, var(--slate-900), var(--slate-900) 6px, var(--slate-800) 6px, var(--slate-800) 12px
+    );
+    overflow:hidden;
+  }
+  .gate .leaf{
+    position:absolute;
+    top:0;left:0;right:0;
+    background:linear-gradient(180deg, var(--spillway-dim), var(--slate-600));
+    transition:height .6s ease;
+  }
+  .gate .depth{font-family:'Courier New', monospace;font-size:17px;font-weight:700;}
+  .gate .depth small{font-size:10.5px;color:var(--mist);display:block;font-weight:400;margin-top:2px;}
+  .gate .discharge{font-size:11px;color:var(--mist);margin-top:6px;}
+  .gate.closed .depth{color:var(--slate-600);}
+  .gate.closed .shaft{opacity:.5;}
+
+  .note{
+    font-size:12.5px;
+    color:var(--mist);
+    line-height:1.6;
+    border-top:1px solid var(--slate-700);
+    padding-top:14px;
+    margin-top:18px;
+  }
+  .note b{color:var(--paper);}
+  .flag{
+    background:rgba(224,120,74,.12);
+    border:1px solid var(--alert);
+    color:#f2b298;
+    padding:12px 14px;
+    border-radius:3px;
+    font-size:13px;
+    margin-bottom:18px;
+  }
+  footer{
+    text-align:center;
+    color:var(--slate-600);
+    font-size:11px;
+    margin-top:30px;
+    font-family:'Courier New', monospace;
+    letter-spacing:.05em;
+  }
+
+  @media (max-width: 640px){
+    body{padding:16px 12px 48px;}
+    header{flex-direction:column;align-items:flex-start;}
+    .crest-tag{text-align:left;}
+    h1{font-size:21px;}
+    .panel{padding:16px 14px;}
+    .grid{grid-template-columns:1fr;gap:12px;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    .gates{grid-template-columns:repeat(2,1fr);}
+    .gate .shaft{height:100px;width:38px;}
+    button{width:100%;padding:13px 18px;font-size:14px;}
+    .row-actions{flex-direction:column;align-items:stretch;}
+    .toggle{width:100%;}
+    .toggle span{flex:1;text-align:center;padding:9px 6px;}
+    input[type=number], input[type=date], input[type=time], select, textarea{
+      font-size:16px !important; /* prevents iOS auto-zoom on focus */
+    }
+    #copyStatus{text-align:center;}
+  }
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1520">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panshet Gate">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <div class="eyebrow">Reservoir Operation · Spillway Release</div>
+      <h1>Panshet Dam Gate Calculator</h1>
+      <div class="sub">Enter inflow and power-house release to get gates-to-open and opening depth per gate</div>
+    </div>
+    <div class="crest-tag">
+      Crest RL <b>631.55 m</b> · FRL <b>636.27 m</b> · MWL <b>636.72 m</b><br>
+      TBL <b>639.13 m</b> · 4 radial gates, operated in symmetric pairs
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>Inputs</h2>
+    <div class="grid">
+      <div>
+        <label for="inflow">Inflow discharge</label>
+        <input type="number" id="inflow" step="0.01" placeholder="e.g. 30000">
+        <div class="unit">cusecs (ft³/s)</div>
+      </div>
+      <div>
+        <label for="power">Discharge through power outlet</label>
+        <input type="number" id="power" step="0.01" placeholder="e.g. 2100">
+        <div class="unit">cusecs (ft³/s)</div>
+      </div>
+      <div>
+        <label for="rl">Current reservoir level</label>
+        <input type="number" id="rl" step="0.001" value="636.27">
+        <div class="unit" id="rlUnitLabel">metres (RL) — FRL = 636.27 m</div>
+      </div>
+      <div>
+        <label>Reservoir level unit</label>
+        <div class="toggle" id="unitToggle">
+          <span class="active" data-unit="m">metres</span>
+          <span data-unit="ft">feet</span>
+        </div>
+      </div>
+      <div>
+        <label>Gates to use</label>
+        <div class="toggle" id="gateModeToggle">
+          <span class="active" data-mode="auto">Auto</span>
+          <span data-mode="2">Only 2 (Outer)</span>
+          <span data-mode="4">All 4</span>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button onclick="calculate()">Calculate gate opening</button>
+    </div>
+  </div>
+
+  <div id="results">
+    <div id="flagArea"></div>
+
+    <div class="panel">
+      <h2>Required Release</h2>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="k">Spillway release required</div>
+          <div class="v" id="reqCumec">–</div>
+        </div>
+        <div class="stat">
+          <div class="k">Same, in cusecs</div>
+          <div class="v" id="reqCusec">–</div>
+        </div>
+        <div class="stat">
+          <div class="k">Reservoir RL used for lookup</div>
+          <div class="v" id="rlUsed">–</div>
+        </div>
+        <div class="stat" id="gateCountStat">
+          <div class="k">Gates to open</div>
+          <div class="v" id="gateCount">–</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Gate-wise Opening — Symmetric Pairs (GOS sequence: open 1‑4‑2‑3 / close 3‑2‑4‑1)</h2>
+      <div class="gates" id="gatesDisplay"></div>
+      <div class="note" id="achievedNote"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>WhatsApp Warning Message (Marathi)</h2>
+    <div class="grid">
+      <div>
+        <label for="waDate">Message date</label>
+        <input type="date" id="waDate">
+      </div>
+      <div>
+        <label for="waTime">Message time</label>
+        <input type="time" id="waTime">
+      </div>
+      <div>
+        <label for="waPct">Reservoir filled</label>
+        <input type="number" id="waPct" step="0.01" placeholder="e.g. 91.50">
+        <div class="unit">% (enter from live storage curve — not auto-computed here)</div>
+      </div>
+      <div>
+        <label for="waReleaseTime">Release start time</label>
+        <input type="time" id="waReleaseTime">
+      </div>
+      <div>
+        <label for="waPower">Power house discharge</label>
+        <input type="number" id="waPower" step="1">
+        <div class="unit">cusecs</div>
+      </div>
+      <div>
+        <label for="waSpillway">Spillway discharge</label>
+        <input type="number" id="waSpillway" step="1">
+        <div class="unit">cusecs</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <label for="waDesignation">Signing authority</label>
+      <textarea id="waDesignation" rows="3" style="width:100%;background:var(--slate-800);border:1px solid var(--slate-600);color:var(--paper);padding:10px 12px;border-radius:3px;font-size:14px;font-family:inherit;">कार्यकारी अभियंता,
+खडकवासला पाटबंधारे विभाग,
+पुणे.</textarea>
+    </div>
+    <div class="row-actions">
+      <button onclick="useNow()">Use current date/time</button>
+      <button onclick="generateWaMessage()">Generate message</button>
+    </div>
+
+    <div id="waOutput" style="display:none;margin-top:20px;">
+      <label for="waMessage">Preview — edit freely before sending</label>
+      <textarea id="waMessage" rows="14" style="width:100%;background:var(--slate-800);border:1px solid var(--slate-600);color:var(--paper);padding:14px;border-radius:3px;font-size:14.5px;line-height:1.7;font-family:'Noto Sans',Arial,sans-serif;"></textarea>
+      <div class="row-actions">
+        <button onclick="copyWaMessage()">Copy text</button>
+        <button style="background:var(--good);" onclick="sendWaMessage()">Send via WhatsApp</button>
+        <span class="unit" id="copyStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>GOS Safety Guardrails (Panshet Dam)</h2>
+    <div class="note" style="border-top:none;padding-top:0;margin-top:0;">
+      • Gates operate only in symmetric pairs — never a single gate or three at once.<br>
+      • Opening order: <b>Gate 1 &amp; 4</b> (outer pair) first, then <b>Gate 2 &amp; 3</b> (inner pair) — sequence 1‑4‑2‑3.<br>
+      • Closing order reverses: <b>3‑2‑4‑1</b>.<br>
+      • No single continuous gate movement &gt; 0.25 m; alternate outer/inner pairs in steps of ≤0.5 m until target opening or full clearance is reached.<br>
+      • Do not let reservoir level encroach on freeboard: MWL 636.72 m, TBL 639.13 m. FRL is 636.27 m.<br>
+      • Conservation storage should not be prematurely spilled during the tail end of September.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>WhatsApp Flood Warning — Panshet Dam</h2>
+    <div class="grid">
+      <div>
+        <label for="warnDateTime">Date &amp; time (auto, adjustable)</label>
+        <input type="datetime-local" id="warnDateTime">
+      </div>
+      <div>
+        <label for="warnPercent">Reservoir filled</label>
+        <input type="number" id="warnPercent" step="0.01" placeholder="e.g. 91.50">
+        <div class="unit">% (as reported)</div>
+      </div>
+      <div>
+        <label for="warnSignatory">Signing authority</label>
+        <input type="text" id="warnSignatory" value="कार्यकारी अभियंता, खडकवासला पाटबंधारे विभाग, पुणे.">
+      </div>
+    </div>
+    <div class="row-actions">
+      <button onclick="generateWarning()">Generate Warning</button>
+      <button id="waSendBtn" style="background:#25D366;display:none;" onclick="sendOnWhatsApp()">Send on WhatsApp</button>
+      <button id="waCopyBtn" style="background:var(--slate-600);color:var(--paper);display:none;" onclick="copyWarning()">Copy Text</button>
+    </div>
+    <textarea id="warnPreview" readonly style="display:none;width:100%;margin-top:16px;min-height:280px;background:var(--slate-800);border:1px solid var(--slate-600);color:var(--paper);border-radius:3px;padding:14px;font-size:14.5px;line-height:1.7;font-family:'Noto Sans','IBM Plex Sans',Arial,sans-serif;"></textarea>
+  </div>
+
+  <footer>Based on Panshet Dam single-gate discharge rating table (crest RL 2072 ft) · linear interpolation between tabulated depths &amp; reservoir levels</footer>
+</div>
+
+<script>
+const CUMEC_TO_CUSEC = 35.3147;
+const FT_TO_M = 0.3048;
+const N_GATES = 4;
+const MAX_DEPTH_FT = 15; // deepest tabulated gate opening
+// GOS-mandated pairing: gates always operated symmetrically in pairs, never singly or as 3.
+// Opening order: outer pair (1,4) first, then inner pair (2,3). Closing reverses: 3,2,4,1.
+const GATE_ORDER = [1,4,2,3];
+const MWL_M = 636.72, TBL_M = 639.13, FRL_M = 636.27, CREST_M = 631.55, MDDL_M = 597.50;
+
+// RL columns (ft) 2073..2087
+const RL_COLS = [2073,2074,2075,2076,2077,2078,2079,2080,2081,2082,2083,2084,2085,2086,2087];
+
+// Depth rows (ft), 0.25 .. 15.00 step 0.25
+const DEPTHS = [];
+for(let i=1;i<=60;i++) DEPTHS.push(i*0.25);
+
+// Discharge per single gate (cusecs). null = not tabulated / not achievable at that RL.
+const Q = [
+[79.47,95.32,110.6,124.3,136.1,146.7,155.6,163.8,175.1,184.1,185.6,200.5,205,220,245],
+[148.4,186.2,220.3,244.7,269.5,291.8,315.88,332.3,351.8,368.1,377.4,399.6,424.6,429.5,495],
+[214.71,272.6,320.4,347,399.6,432.5,463.9,493.9,522.3,549.3,564.1,595.7,621,643.6,683],
+[273.6,354.4,419.7,475.8,526.7,571.8,613.7,655.5,691.1,721,761.7,794.5,849,856.7,977],
+[293.6,431.2,515,586.5,651,707.5,760.3,812.6,858,902,945.8,986.3,1025,1064,1120],
+[370.4,502.7,605.9,696.3,771.4,841,905.5,971.2,1023,1079,1130,1178,1225,1271,1352],
+[404,568.4,692.1,796.4,888.8,971,1046,1119,1185,1248,1311,1365,1477,1487,1598],
+[423.2,627.9,714.1,880.6,1002,1098,1185,1269,1347,1422,1489,1556,1615,1681,1844],
+[null,648,850.7,991,1114,1225,1321,1416,1504,1586,1664,1738,1811,1881,null],
+[null,724.7,922.3,1081,1223,1344,1422,1591,1663,1751,1841,1922,2003,2080,null],
+[null,759,988.1,1169,1323,1461,1584,1701,1811,1913,2011,2102,2190,2276,null],
+[null,777.6,1074,1248,1422,1574,1712,1841,1961,2065,2118,2283,2378,2473,null],
+[null,null,1088,1326,1517,1685,1887,1977,2207,2231,2348,2456,2563,2667,null],
+[null,null,1144,1398,1609,1795,1955,2110,2252,2395,2513,2631,2747,2853,null],
+[null,null,1179,1464,1696,1894,2070,2241,2393,2539,2674,2803,2927,3046,null],
+[null,null,1198,1523,1772,1984,2189,2368,2532,2688,2839,2975,3107,3234,null],
+[null,null,null,1543,1855,2089,2299,2492,2669,2834,2893,3139,3280,3418,null],
+[null,null,null,1621,1924,2180,2407,2611,2801,2980,3152,3304,3497,3601,null],
+[null,null,null,1625,1991,2286,2508,2730,2931,3121,3300,3465,3627,3784,null],
+[null,null,null,1673,2050,2347,2607,2844,3039,3160,3449,3631,3796,3961,null],
+[null,null,null,null,2070,2424,2703,2954,3183,3395,3596,3784,3968,4136,null],
+[null,null,null,null,2147,2481,2794,3063,3303,3530,3741,3944,4129,4263,null],
+[null,null,null,null,2182,2563,2873,3163,3422,3659,3883,4092,4291,4484,null],
+[null,null,null,null,2200,2622,2963,3263,3535,3786,4021,4244,4452,4696,null],
+[null,null,null,null,null,2641,3038,3358,3640,3910,4159,4388,4610,4820,null],
+[null,null,null,null,null,2717,3111,3449,3754,4031,4291,4533,4767,4984,null],
+[null,null,null,null,null,2752,3176,3535,3855,4149,4421,4674,4917,5146,null],
+[null,null,null,null,null,2771,3836,3616,3954,4262,4547,4816,5065,5309,null],
+[null,null,null,null,null,null,3256,3693,4050,4373,4673,4949,5213,5466,null],
+[null,null,null,null,null,null,3332,3765,4139,4482,4793,5083,5358,5633,null],
+[null,null,null,null,null,null,3365,3831,4226,4582,4909,5213,5499,5773,null],
+[null,null,null,null,null,null,3386,3891,4309,4681,5053,5343,5641,5929,null],
+[null,null,null,null,null,null,null,3110,4385,4777,5135,5464,5775,6068,null],
+[null,null,null,null,null,null,null,3988,4458,4868,5244,5584,5907,6213,null],
+[null,null,null,null,null,null,null,4021,4523,4953,5344,5702,6037,6354,null],
+[null,null,null,null,null,null,null,4041,4582,5035,5443,5819,6163,6494,null],
+[null,null,null,null,null,null,null,null,4602,5123,5539,5927,6288,6630,null],
+[null,null,null,null,null,null,null,null,4680,5184,5630,6036,6407,6759,null],
+[null,null,null,null,null,null,null,null,4712,5250,5715,6137,6525,6895,null],
+[null,null,null,null,null,null,null,null,4735,5310,5798,6237,6640,7021,null],
+[null,null,null,null,null,null,null,null,null,5328,5873,6330,6751,7145,null],
+[null,null,null,null,null,null,null,null,null,5408,5946,6422,6851,7264,null],
+[null,null,null,null,null,null,null,null,null,5441,6002,6507,6961,7381,null],
+[null,null,null,null,null,null,null,null,null,5480,6073,6554,7058,7408,null],
+[null,null,null,null,null,null,null,null,null,null,6091,6667,7155,7608,null],
+[null,null,null,null,null,null,null,null,null,null,6169,6738,7246,7716,null],
+[null,null,null,null,null,null,null,null,null,null,6201,6805,7331,7816,null],
+[null,null,null,null,null,null,null,null,null,null,6220,6858,7415,7914,null],
+[null,null,null,null,null,null,null,null,null,null,null,6884,7491,8011,null],
+[null,null,null,null,null,null,null,null,null,null,null,6960,7563,8102,null],
+[null,null,null,null,null,null,null,null,null,null,null,6993,7628,8189,null],
+[null,null,null,null,null,null,null,null,null,null,null,7013,7688,8269,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,7707,8347,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,7785,8418,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,7818,8484,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,7839,8545,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,null,8585,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,null,9642,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,null,8676,null],
+[null,null,null,null,null,null,null,null,null,null,null,null,null,8694,null],
+];
+
+let gateMode = 'auto';
+document.getElementById('gateModeToggle').addEventListener('click', (e)=>{
+  if(e.target.tagName!=='SPAN') return;
+  [...document.querySelectorAll('#gateModeToggle span')].forEach(s=>s.classList.remove('active'));
+  e.target.classList.add('active');
+  gateMode = e.target.dataset.mode;
+});
+
+document.getElementById('unitToggle').addEventListener('click', (e)=>{
+  if(e.target.tagName!=='SPAN') return;
+  [...document.querySelectorAll('#unitToggle span')].forEach(s=>s.classList.remove('active'));
+  e.target.classList.add('active');
+  const unit = e.target.dataset.unit;
+  const rlInput = document.getElementById('rl');
+  const label = document.getElementById('rlUnitLabel');
+  if(unit==='ft'){
+    rlInput.value = (636.27/FT_TO_M).toFixed(2);
+    label.textContent = 'feet (RL) — FRL = 2087.0 ft';
+  } else {
+    rlInput.value = 636.27;
+    label.textContent = 'metres (RL) — FRL = 636.27 m';
+  }
+  rlInput.dataset.unit = unit;
+});
+
+// Build, for a target RL (ft), an interpolated single-gate discharge curve vs depth,
+// valid over rows [0 .. limit] where limit is the highest row with data in BOTH bounding columns.
+function buildCurveForRL(rlFt){
+  let rl = Math.min(Math.max(rlFt, RL_COLS[0]), RL_COLS[RL_COLS.length-1]);
+  let loIdx = 0;
+  for(let i=0;i<RL_COLS.length-1;i++){
+    if(RL_COLS[i] <= rl) loIdx = i;
+  }
+  let hiIdx = Math.min(loIdx+1, RL_COLS.length-1);
+  const rlLo = RL_COLS[loIdx], rlHi = RL_COLS[hiIdx];
+  const frac = (rlHi===rlLo) ? 0 : (rl-rlLo)/(rlHi-rlLo);
+
+  const curve = [];
+  for(let r=0;r<DEPTHS.length;r++){
+    const qLo = Q[r][loIdx], qHi = Q[r][hiIdx];
+    if(qLo===null || qHi===null){ curve.push(null); }
+    else{ curve.push(qLo + frac*(qHi-qLo)); }
+  }
+  // trim to contiguous valid run from the top
+  let limit = -1;
+  for(let r=0;r<curve.length;r++){
+    if(curve[r]===null) break;
+    limit = r;
+  }
+  return {curve, limit, rlLo, rlHi, frac, clamped: rlFt!==rl, rlUsed: rl};
+}
+
+// Inverse-interpolate: given target discharge (cusecs) and a curve, return depth (ft) or null if unreachable.
+function depthForDischarge(curveObj, targetQ){
+  const {curve, limit} = curveObj;
+  if(limit < 0) return null; // no data at all at this RL
+  const maxQ = curve[limit];
+  if(targetQ > maxQ) return {overflow:true, maxDepth:DEPTHS[limit], maxQ};
+  const minQ = curve[0];
+  if(targetQ <= minQ){
+    // approx proportional crack opening below the first tabulated point
+    return {depth: DEPTHS[0]*(targetQ/minQ), overflow:false};
+  }
+  for(let r=0;r<limit;r++){
+    if(curve[r] <= targetQ && targetQ <= curve[r+1]){
+      const t = (targetQ-curve[r])/(curve[r+1]-curve[r]);
+      const depth = DEPTHS[r] + t*(DEPTHS[r+1]-DEPTHS[r]);
+      return {depth, overflow:false};
+    }
+  }
+  return {overflow:true, maxDepth:DEPTHS[limit], maxQ};
+}
+
+function calculate(){
+  const inflow = parseFloat(document.getElementById('inflow').value);
+  const power = parseFloat(document.getElementById('power').value);
+  const rlRaw = parseFloat(document.getElementById('rl').value);
+  const unit = document.getElementById('rl').dataset.unit || 'm';
+
+  if(isNaN(inflow) || isNaN(power) || isNaN(rlRaw)){
+    alert('Please enter inflow discharge, power-house discharge and reservoir level.');
+    return;
+  }
+
+  const rlFt = unit==='ft' ? rlRaw : (rlRaw/FT_TO_M);
+  const reqCusec = inflow - power; // both entered directly in cusecs
+  const reqCumec = reqCusec / CUMEC_TO_CUSEC;
+
+  document.getElementById('results').style.display = 'block';
+  const flagArea = document.getElementById('flagArea');
+  flagArea.innerHTML='';
+
+  document.getElementById('reqCumec').innerHTML = reqCumec.toFixed(2)+' <small>cumecs</small>';
+  document.getElementById('reqCusec').innerHTML = reqCusec.toFixed(0)+' <small>cusecs</small>';
+  document.getElementById('rlUsed').innerHTML = rlFt.toFixed(2)+' <small>ft&nbsp;RL</small>';
+
+  if(reqCumec <= 0){
+    flagArea.innerHTML = '<div class="flag">Power-house release already meets or exceeds inflow. No spillway gates need to be opened — keep all 4 gates closed.</div>';
+    document.getElementById('gateCount').textContent = '0';
+    renderGates([0,0,0,0], reqCusec, 0);
+    document.getElementById('achievedNote').innerHTML = '';
+    return;
+  }
+
+  const curveObj = buildCurveForRL(rlFt);
+  if(curveObj.clamped){
+    flagArea.innerHTML += `<div class="flag">Entered reservoir level is outside the tabulated range (2073–2087 ft RL). Calculation uses the nearest boundary (${curveObj.rlUsed.toFixed(2)} ft) — treat the result as indicative only.</div>`;
+  }
+
+  let chosenN = null, chosenDepth = null, chosenResult=null, forcedOverflow=false;
+  const candidates = gateMode==='auto' ? [2,4] : [parseInt(gateMode,10)];
+  for(const n of candidates){
+    const perGate = reqCusec/n;
+    const res = depthForDischarge(curveObj, perGate);
+    if(res && !res.overflow){
+      chosenN = n; chosenDepth = res.depth; chosenResult = res;
+      break;
+    } else if(gateMode!=='auto'){
+      forcedOverflow = true; // user forced a gate count that can't achieve the release
+    }
+  }
+
+  if(chosenN===null){
+    if(gateMode==='2'){
+      const perGate2 = reqCusec/2;
+      const capQ = curveObj.limit>=0 ? curveObj.curve[curveObj.limit] : 0;
+      flagArea.innerHTML += `<div class="flag"><b>Only 2 gates (outer pair) selected, but this is not enough.</b> Max with both fully open to ${DEPTHS[curveObj.limit]} ft is ≈ ${(capQ*2).toFixed(0)} cusecs (${(capQ*2/CUMEC_TO_CUSEC).toFixed(1)} cumecs) at this RL — short of the ${reqCusec.toFixed(0)} cusecs required. Switch to "All 4" or "Auto".</div>`;
+      document.getElementById('gateCount').textContent = '2 (full — insufficient)';
+      renderGates([DEPTHS[curveObj.limit],0,0,DEPTHS[curveObj.limit]], reqCusec, capQ*2);
+      document.getElementById('achievedNote').innerHTML = `Achieved discharge at full opening of outer pair: <b>${(capQ*2).toFixed(0)} cusecs</b> — short of the ${reqCusec.toFixed(0)} cusecs required.`;
+      syncWaFromCalculator(capQ*2, power);
+      return;
+    }
+    // even 4 gates fully open can't pass it
+    const perGate4 = reqCusec/4;
+    const capQ = curveObj.limit>=0 ? curveObj.curve[curveObj.limit] : 0;
+    flagArea.innerHTML += `<div class="flag"><b>Required release exceeds capacity</b> of the 4 spillway gates at this reservoir level (max ≈ ${(capQ*4).toFixed(0)} cusecs / ${(capQ*4/CUMEC_TO_CUSEC).toFixed(1)} cumecs with all gates fully open to ${DEPTHS[curveObj.limit]} ft). Reservoir level will rise; gates should be kept fully open and re-checked as level increases.</div>`;
+    document.getElementById('gateCount').textContent = '4 (full)';
+    renderGates([DEPTHS[curveObj.limit],DEPTHS[curveObj.limit],DEPTHS[curveObj.limit],DEPTHS[curveObj.limit]], reqCusec, capQ*4);
+    document.getElementById('achievedNote').innerHTML = `Achieved discharge at full opening: <b>${(capQ*4).toFixed(0)} cusecs</b> (${(capQ*4/CUMEC_TO_CUSEC).toFixed(1)} cumecs) — short of the ${reqCusec.toFixed(0)} cusecs required.`;
+    syncWaFromCalculator(capQ*4, power);
+    return;
+  }
+
+  document.getElementById('gateCount').textContent = chosenN;
+  const depths = [0,0,0,0]; // index 0..3 = Gate 1..4 (physical position)
+  if(chosenN>=2){ depths[0]=chosenDepth; depths[3]=chosenDepth; } // outer pair: Gate 1 & 4
+  if(chosenN>=4){ depths[1]=chosenDepth; depths[2]=chosenDepth; } // inner pair: Gate 2 & 3
+  renderGates(depths, reqCusec, reqCusec);
+
+  const pairText = chosenN===2
+    ? 'Outer pair (Gate 1 &amp; Gate 4) only — inner pair (Gate 2 &amp; Gate 3) stays closed'
+    : 'All 4 gates — outer pair (1 &amp; 4) opened first, inner pair (2 &amp; 3) opened second, per GOS sequence 1‑4‑2‑3';
+  const modeNote = gateMode==='auto' ? ' (auto-selected as the fewest gates needed)' : ' (as manually selected)';
+  document.getElementById('achievedNote').innerHTML =
+    `Opening <b>${chosenN}</b> of 4 gates${modeNote} equally to <b>${chosenDepth.toFixed(2)} ft</b> (${(chosenDepth*FT_TO_M).toFixed(3)} m) each passes the required ${reqCusec.toFixed(0)} cusecs (${reqCumec.toFixed(2)} cumecs) at reservoir RL ${rlFt.toFixed(2)} ft.<br>${pairText}. Raise each gate in increments of ≤0.25 m per single movement (alternating outer/inner in steps of up to 0.5 m), never opening a single gate alone or three at a time. When shutting down, reverse the process: close in order 3‑2‑4‑1.`;
+  syncWaFromCalculator(reqCusec, power);
+}
+
+function renderGates(depths, reqCusec, achievedCusec){
+  const el = document.getElementById('gatesDisplay');
+  el.innerHTML='';
+  const pairLabel = ['Outer pair','Inner pair','Inner pair','Outer pair'];
+  depths.forEach((d,i)=>{
+    const pct = Math.min(d/MAX_DEPTH_FT*100, 100);
+    const closed = d<=0;
+    const div = document.createElement('div');
+    div.className = 'gate'+(closed?' closed':'');
+    div.innerHTML = `
+      <div class="label">Gate ${i+1}<br><span style="color:var(--slate-600);font-size:9.5px;">${pairLabel[i]}</span></div>
+      <div class="shaft"><div class="leaf" style="height:${pct}%"></div></div>
+      <div class="depth">${closed? 'CLOSED' : d.toFixed(2)+' ft'}${closed?'':'<small>'+(d*FT_TO_M).toFixed(3)+' m</small>'}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ---------- WhatsApp warning message ----------
+
+function pad2(n){ return n.toString().padStart(2,'0'); }
+
+function to12h(hh, mm){
+  let h = parseInt(hh,10);
+  const ampm = h>=12 ? 'pm' : 'am';
+  h = h%12; if(h===0) h=12;
+  return `${pad2(h)}:${pad2(mm)} ${ampm}`;
+}
+
+function setNowInto(dateId, timeId){
+  const now = new Date();
+  document.getElementById(dateId).value = `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}`;
+  document.getElementById(timeId).value = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+}
+
+function useNow(){
+  setNowInto('waDate','waTime');
+  // default release time = 2 hours from now, editable afterwards
+  const later = new Date(Date.now()+2*60*60*1000);
+  document.getElementById('waReleaseTime').value = `${pad2(later.getHours())}:${pad2(later.getMinutes())}`;
+}
+
+// pre-fill date/time on load, and power/spillway from the calculator whenever it runs
+window.addEventListener('DOMContentLoaded', useNow);
+
+function syncWaFromCalculator(reqCusecValue, powerValue){
+  const wp = document.getElementById('waPower');
+  const ws = document.getElementById('waSpillway');
+  if(!wp.dataset.touched) wp.value = Math.round(powerValue);
+  if(!ws.dataset.touched) ws.value = Math.round(reqCusecValue);
+}
+['waPower','waSpillway'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{ e.target.dataset.touched = '1'; });
+});
+
+function generateWaMessage(){
+  const dateVal = document.getElementById('waDate').value;
+  const timeVal = document.getElementById('waTime').value;
+  const releaseVal = document.getElementById('waReleaseTime').value;
+  const pct = document.getElementById('waPct').value;
+  const power = document.getElementById('waPower').value;
+  const spillway = document.getElementById('waSpillway').value;
+  const designation = document.getElementById('waDesignation').value.trim().split('\n').filter(Boolean);
+
+  if(!dateVal || !timeVal || !releaseVal || pct==='' || power==='' || spillway===''){
+    alert('Please fill in date, time, release time, % filled, power house discharge and spillway discharge.');
+    return;
+  }
+
+  const [y,m,d] = dateVal.split('-');
+  const dateStr = `${d}-${m}-${y}`;
+  const [hh,mm] = timeVal.split(':');
+  const timeStr = to12h(hh,mm);
+  const [rhh,rmm] = releaseVal.split(':');
+  const releaseStr = to12h(rhh,rmm);
+
+  const powerNum = parseFloat(power);
+  const spillwayNum = parseFloat(spillway);
+  let releaseSentence;
+  if(powerNum>0 && spillwayNum>0){
+    releaseSentence = `तरी, धरणात प्राप्त होणारा येवा व पाणलोट क्षेत्रातील पर्जन्यमान विचारात घेऊन धरणातील पाणीसाठा नियंत्रित करणेकरिता आज ${releaseStr} वाजता जलविद्युत गृहातून ${power} क्युसेक्स व धरणाच्या सांडव्या वरून  ${spillway}  विसर्ग सुरू करण्यात येणार आहे.`;
+  } else if(powerNum>0){
+    releaseSentence = `तरी, धरणात प्राप्त होणारा येवा व पाणलोट क्षेत्रातील पर्जन्यमान विचारात घेऊन धरणातील पाणीसाठा नियंत्रित करणेकरिता आज ${releaseStr} वाजता जलविद्युत गृहातून ${power} क्युसेक्स विसर्ग सुरू करण्यात येणार आहे.`;
+  } else if(spillwayNum>0){
+    releaseSentence = `तरी, धरणात प्राप्त होणारा येवा व पाणलोट क्षेत्रातील पर्जन्यमान विचारात घेऊन धरणातील पाणीसाठा नियंत्रित करणेकरिता आज ${releaseStr} वाजता धरणाच्या सांडव्या वरून  ${spillway}  विसर्ग सुरू करण्यात येणार आहे.`;
+  } else {
+    releaseSentence = `तरी, धरणात प्राप्त होणारा येवा व पाणलोट क्षेत्रातील पर्जन्यमान विचारात घेऊन धरणातील पाणीसाठा नियंत्रित करणेकरिता आज ${releaseStr} वाजता विसर्ग सुरू करण्यात येणार आहे.`;
+  }
+
+  const msg =
+`🚨 पानशेत धरण 🚨
+🚨 महत्त्वाची सूचना 🚨
+----------------------------------------
+दि. : ${dateStr} @ ${timeStr}
+----------------------------------------
+* मुठा नदी काठच्या सर्व नागरिकांना सूचित करण्यात येत आहे, की पानशेत धरण सद्यस्थितीमध्ये ${pct}% भरलेले आहे. पाणलोट क्षेत्रात सातत्याने पाऊस चालू असून धरणामध्ये मोठा येवा प्राप्त होत आहे. 
+${releaseSentence}
+    तरी नदी काठच्या सर्व नागरीकांना सूचित करण्यात येते की, कृपया कोणीही नदीपात्रात  उतरू नये. तसेच नदी मधील पाण्याचे पंप, नदी काठचे शेती अवजारे व तत्सम साहित्य अथवा जनावरे असल्यास ती तात्काळ सुरक्षित ठिकाणी हलविण्यात यावित. 
+सखल भागातील संबंधित नागरिकांना सूचना देण्यात याव्यात, सर्वांनी योग्य ती खबरदारी व दक्षता घेत  जलसंपदा विभागास व प्रशासनास सहकार्य करावे.
+----------------------------------------
+${designation.join('\n')}`;
+
+  document.getElementById('waMessage').value = msg;
+  document.getElementById('waOutput').style.display = 'block';
+  document.getElementById('copyStatus').textContent = '';
+}
+
+function copyWaMessage(){
+  const ta = document.getElementById('waMessage');
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    document.getElementById('copyStatus').textContent = 'Copied ✓';
+  }).catch(()=>{
+    document.execCommand('copy');
+    document.getElementById('copyStatus').textContent = 'Copied ✓';
+  });
+}
+
+function sendWaMessage(){
+  const text = document.getElementById('waMessage').value;
+  if(!text){ alert('Generate the message first.'); return; }
+  const url = 'https://wa.me/?text=' + encodeURIComponent(text);
+  window.open(url, '_blank');
+}
+
+function pad2(n){ return n<10 ? '0'+n : ''+n; }
+
+function initWarnDateTime(){
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset()*60000);
+  document.getElementById('warnDateTime').value = local.toISOString().slice(0,16);
+}
+initWarnDateTime();
+
+function formatWarnDateTime(dtVal){
+  const d = new Date(dtVal);
+  const dd = pad2(d.getDate());
+  const mm = pad2(d.getMonth()+1);
+  const yyyy = d.getFullYear();
+  let hh = d.getHours();
+  const min = pad2(d.getMinutes());
+  const ampm = hh>=12 ? 'pm' : 'am';
+  hh = hh % 12; if(hh===0) hh=12;
+  return `${dd}-${mm}-${yyyy} @ ${pad2(hh)}:${min} ${ampm}`;
+}
+
+function buildWarningText(){
+  const dtVal = document.getElementById('warnDateTime').value;
+  const pct = document.getElementById('warnPercent').value;
+  const signatory = document.getElementById('warnSignatory').value.trim();
+  if(!dtVal || pct===''){
+    alert('Please set the date/time and reservoir % filled.');
+    return null;
+  }
+  const dtStr = formatWarnDateTime(dtVal);
+  const pctStr = parseFloat(pct).toFixed(2);
+
+  return `🚨 पानशेत धरण 🚨
+🚨 महत्त्वाची सूचना 🚨
+----------------------------------------
+दि. : ${dtStr}
+----------------------------------------
+* मुठा नदी काठच्या सर्व नागरिकांना सूचित करण्यात येत आहे, की पानशेत धरण सद्यस्थितीमध्ये ${pctStr}% भरलेले आहे. पाणलोट क्षेत्रात सातत्याने पाऊस चालू असून धरणामध्ये मोठा येवा प्राप्त होत आहे. 
+तरी, धरणात प्राप्त होणारा येवा व पाणलोट क्षेत्रातील पर्जन्यमान विचारात घेऊन धरणातील पाणीसाठा नियंत्रित करणेकरिता जलविद्युत गृहातून व धरणाच्या सांडव्या वरून  आवश्यकता भासल्यास विसर्ग करण्यात येऊ शकतो.
+    तरी नदी काठच्या सर्व नागरीकांना सूचित करण्यात येते की, कृपया कोणीही नदीपात्रात  उतरू नये. तसेच नदी मधील पाण्याचे पंप, नदी काठचे शेती अवजारे व तत्सम साहित्य अथवा जनावरे असल्यास ती तात्काळ सुरक्षित ठिकाणी हलविण्यात यावित. 
+सखल भागातील संबंधित नागरिकांना सूचना देण्यात याव्यात, सर्वांनी योग्य ती खबरदारी व दक्षता घेत  जलसंपदा विभागास व प्रशासनास सहकार्य करावे.
+----------------------------------------
+${signatory}`;
+}
+
+function generateWarning(){
+  const text = buildWarningText();
+  if(text===null) return;
+  const ta = document.getElementById('warnPreview');
+  ta.value = text;
+  ta.style.display = 'block';
+  document.getElementById('waSendBtn').style.display = 'inline-block';
+  document.getElementById('waCopyBtn').style.display = 'inline-block';
+}
+
+function sendOnWhatsApp(){
+  const text = document.getElementById('warnPreview').value;
+  if(!text) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function copyWarning(){
+  const ta = document.getElementById('warnPreview');
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    const btn = document.getElementById('waCopyBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(()=>{ btn.textContent = original; }, 1500);
+  }).catch(()=>{ document.execCommand('copy'); });
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js'));
+}
+</script>
+
+</body>
+</html>
